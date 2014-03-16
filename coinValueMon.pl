@@ -6,6 +6,15 @@ use warnings;
 use LWP::UserAgent;
 use JSON;
 
+my @minedCoins = (
+	'ltc',
+	'nvc',
+	'elc',
+	'ftc',
+	'pxc',
+	'wdc'
+);
+
 MAIN: {
 
 	my $req = HTTP::Request->new(GET => 'http://www.coinchoose.com/api.php?base=BTC');
@@ -24,15 +33,22 @@ MAIN: {
 
 	my $jsonObj = decode_json($jsonString);
 
-	print "first obj...", $jsonObj->[0]->{0}, "\n";
-
+	# this gives coins ordered highest to lowest.
 	my @sortedCoins = sort {$b->{ratio} <=> $a->{ratio}} @$jsonObj;
 
+	open FH, ">/tmp/topCoin";
+
 	my $c = 0;
-	print "first 5 coins\n";
+	print "top coin\n";
 	foreach my $coin (@sortedCoins) {
-		$c++;
-		print $coin->{symbol}, ' ratio ', $coin->{ratio},"\n";
-		last if $c > 5;
+		my $sym = lc($sortedCoins[0]->{symbol});
+		print "symbole is ", $sym, "\n";
+		print grep(/$sym/, @minedCoins), "\n";
+		if (scalar grep(/^$sym$/, @minedCoins)) {
+			print $coin->{symbol}, ' ratio ', $coin->{ratio},"\n";
+			print FH $sym;
+			last;
+		}
 	}
+	close FH;
 }
