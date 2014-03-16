@@ -1,0 +1,4 @@
+coinValueMon
+============
+
+Check coin values
