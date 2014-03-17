@@ -41,9 +41,7 @@ MAIN: {
 	my $c = 0;
 	print "top coin\n";
 	foreach my $coin (@sortedCoins) {
-		my $sym = lc($sortedCoins[0]->{symbol});
-		print "symbole is ", $sym, "\n";
-		print grep(/$sym/, @minedCoins), "\n";
+		my $sym = lc($coin->{symbol});
 		if (scalar grep(/^$sym$/, @minedCoins)) {
 			print $coin->{symbol}, ' ratio ', $coin->{ratio},"\n";
 			print FH $sym;
