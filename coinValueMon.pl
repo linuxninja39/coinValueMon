@@ -5,21 +5,13 @@ use warnings;
 
 use LWP::UserAgent;
 use JSON;
-
-my @minedCoins = (
-	'ltc',
-	'nvc',
-	'elc',
-	'ftc',
-	'pxc',
-	'wdc'
-);
+use DBI;
 
 MAIN: {
 
 	my $req = HTTP::Request->new(GET => 'http://www.coinchoose.com/api.php?base=BTC');
 	my $ua = new LWP::UserAgent();
-	$ua->agent("MyApp/0.1 ");
+	$ua->agent("CoinValueMon/0.1 ");
 	my $res = $ua->request($req);
 
 	# Check the outcome of the response
@@ -33,20 +25,28 @@ MAIN: {
 
 	my $jsonObj = decode_json($jsonString);
 
-	# this gives coins ordered highest to lowest.
-	my @sortedCoins = sort {$b->{ratio} <=> $a->{ratio}} @$jsonObj;
+	my $dbh = DBI->connect('dbi:mysql:CryptoGods','root','') or die 'could not connect to db: ' . DBI->errstr;
 
-	open FH, ">/tmp/topCoin";
-
+	my $coinSelectStmt = $dbh->prepare("select * from Coin where symbol = ?");
+	my $coinUpdateStmt = $dbh->prepare("update Coin set profitability = ? where symbol = ?");
+	my $coinInsertStmt = $dbh->prepare("insert into Coin set symbol = ?, name = ?, profitability = ?");
 	my $c = 0;
-	print "top coin\n";
-	foreach my $coin (@sortedCoins) {
+	foreach my $coin (@$jsonObj) {
 		my $sym = lc($coin->{symbol});
-		if (scalar grep(/^$sym$/, @minedCoins)) {
-			print $coin->{symbol}, ' ratio ', $coin->{ratio},"\n";
-			print FH $sym;
-			last;
+		$coinSelectStmt->execute($sym);
+		if ($coinSelectStmt->rows == 0) {
+			$coinInsertStmt->execute(
+				$coin->{symbol},
+				$coin->{name},
+				$coin->{adjustedratio}
+			) or print "could not insert coin($sym):" . $coinInsertStmt->errstr;
+			print 'inserted ', $coin->{symbol}, ' to ', $coin->{adjustedratio},"\n";
+		} else {
+			$coinUpdateStmt->execute(
+				$coin->{adjustedratio},
+				$coin->{symbol}
+			) or print "could not update coin($sym):" . $coinUpdateStmt->errstr;
+			print 'updated ', $coin->{symbol}, ' to ', $coin->{adjustedratio},"\n";
 		}
 	}
-	close FH;
 }
